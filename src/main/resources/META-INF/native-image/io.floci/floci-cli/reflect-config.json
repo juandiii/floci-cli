@@ -1,0 +1,16 @@
+[
+  {
+    "name": "io.floci.cli.config.Profile",
+    "allDeclaredFields": true,
+    "allDeclaredMethods": true,
+    "allDeclaredConstructors": true
+  },
+  {
+    "name": "com.fasterxml.jackson.databind.ser.std.ToStringSerializer",
+    "allDeclaredMethods": true
+  },
+  {
+    "name": "com.fasterxml.jackson.databind.deser.std.StringDeserializer",
+    "allDeclaredMethods": true
+  }
+]

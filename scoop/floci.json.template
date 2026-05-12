@@ -1,0 +1,24 @@
+{
+  "version": "{{VERSION}}",
+  "description": "Official CLI for the Floci local AWS emulator",
+  "homepage": "https://floci.io",
+  "license": "MIT",
+  "architecture": {
+    "64bit": {
+      "url": "https://github.com/floci-io/floci-cli/releases/download/{{VERSION}}/floci-windows-amd64.exe",
+      "hash": "{{SHA256_WINDOWS_AMD64}}",
+      "bin": "floci-windows-amd64.exe"
+    }
+  },
+  "bin": [["floci-windows-amd64.exe", "floci"]],
+  "checkver": {
+    "github": "https://github.com/floci-io/floci-cli"
+  },
+  "autoupdate": {
+    "architecture": {
+      "64bit": {
+        "url": "https://github.com/floci-io/floci-cli/releases/download/$version/floci-windows-amd64.exe"
+      }
+    }
+  }
+}

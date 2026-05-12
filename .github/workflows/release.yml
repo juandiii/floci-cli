@@ -1,0 +1,231 @@
+name: Release
+
+# Triggered when a SemVer tag (e.g. 0.1.0) is pushed.
+# Builds native binaries for all 5 platform targets, creates a GitHub Release,
+# and pushes Docker image floci/cli:<version>.
+#
+# Required secrets: DOCKERHUB_USERNAME, DOCKERHUB_TOKEN
+
+on:
+  push:
+    tags:
+      - '[0-9]+.[0-9]+.[0-9]+'
+
+permissions:
+  contents: write
+  packages: write
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-linux-amd64:
+    name: Build — linux/amd64
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: graalvm/setup-graalvm@v1
+        with:
+          java-version: '24'
+          distribution: 'graalvm-community'
+          cache: maven
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+      - run: mvn clean package -Pnative -DskipTests -B
+      - run: mv target/floci target/floci-linux-amd64
+      - uses: actions/upload-artifact@v4
+        with:
+          name: floci-linux-amd64
+          path: target/floci-linux-amd64
+
+  build-linux-arm64:
+    name: Build — linux/arm64
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: graalvm/setup-graalvm@v1
+        with:
+          java-version: '24'
+          distribution: 'graalvm-community'
+          cache: maven
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+      - run: mvn clean package -Pnative -DskipTests -B
+      - run: mv target/floci target/floci-linux-arm64
+      - uses: actions/upload-artifact@v4
+        with:
+          name: floci-linux-arm64
+          path: target/floci-linux-arm64
+
+  build-darwin-amd64:
+    name: Build — darwin/amd64
+    runs-on: macos-13
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: graalvm/setup-graalvm@v1
+        with:
+          java-version: '24'
+          distribution: 'graalvm-community'
+          cache: maven
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+      - run: mvn clean package -Pnative -DskipTests -B
+      - run: mv target/floci target/floci-darwin-amd64
+      - uses: actions/upload-artifact@v4
+        with:
+          name: floci-darwin-amd64
+          path: target/floci-darwin-amd64
+
+  build-darwin-arm64:
+    name: Build — darwin/arm64
+    runs-on: macos-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: graalvm/setup-graalvm@v1
+        with:
+          java-version: '24'
+          distribution: 'graalvm-community'
+          cache: maven
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+      - run: mvn clean package -Pnative -DskipTests -B
+      - run: mv target/floci target/floci-darwin-arm64
+      - uses: actions/upload-artifact@v4
+        with:
+          name: floci-darwin-arm64
+          path: target/floci-darwin-arm64
+
+  build-windows-amd64:
+    name: Build — windows/amd64
+    runs-on: windows-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: graalvm/setup-graalvm@v1
+        with:
+          java-version: '24'
+          distribution: 'graalvm-community'
+          cache: maven
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+      - run: mvn clean package -Pnative -DskipTests -B
+      - run: mv target/floci.exe target/floci-windows-amd64.exe
+      - uses: actions/upload-artifact@v4
+        with:
+          name: floci-windows-amd64
+          path: target/floci-windows-amd64.exe
+
+  build-jar:
+    name: Build — JVM jar
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          java-version: '25'
+          distribution: 'temurin'
+          cache: maven
+      - run: mvn clean package -DskipTests -B
+      - uses: actions/upload-artifact@v4
+        with:
+          name: floci-jar
+          path: target/floci.jar
+
+  release:
+    name: Create GitHub Release
+    needs: [build-linux-amd64, build-linux-arm64, build-darwin-amd64, build-darwin-arm64, build-windows-amd64, build-jar]
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Extract version
+        id: version
+        run: echo "version=${GITHUB_REF_NAME}" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist/
+
+      - name: Generate checksums
+        run: |
+          cd dist
+          find . -type f \( -name "floci-*" \) | sort | xargs sha256sum > sha256sums.txt
+          cat sha256sums.txt
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: "floci ${{ steps.version.outputs.version }}"
+          body: |
+            ## Installation
+
+            **Homebrew:**
+            ```sh
+            brew install floci-io/floci/floci
+            ```
+
+            **Direct download (Linux/macOS):**
+            ```sh
+            curl -fsSL https://floci.io/install.sh | sh
+            ```
+
+            **Windows:**
+            ```powershell
+            iwr https://floci.io/install.ps1 | iex
+            ```
+
+            **JVM fallback** (requires Java 21+): `floci.jar`
+
+            See [CHANGELOG.md](CHANGELOG.md) for what's new.
+          files: |
+            dist/floci-linux-amd64/floci-linux-amd64
+            dist/floci-linux-arm64/floci-linux-arm64
+            dist/floci-darwin-amd64/floci-darwin-amd64
+            dist/floci-darwin-arm64/floci-darwin-arm64
+            dist/floci-windows-amd64/floci-windows-amd64.exe
+            dist/floci-jar/floci.jar
+            dist/sha256sums.txt
+
+  docker:
+    name: Push Docker image
+    needs: [build-linux-amd64, build-linux-arm64]
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Extract version
+        id: version
+        run: echo "version=${GITHUB_REF_NAME}" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: floci-linux-amd64
+          path: docker/amd64/
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: floci-linux-arm64
+          path: docker/arm64/
+
+      - run: chmod +x docker/amd64/floci-linux-amd64 docker/arm64/floci-linux-arm64
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Dockerfile
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: |
+            floci/cli:${{ steps.version.outputs.version }}
+            floci/cli:latest
+          build-args: VERSION=${{ steps.version.outputs.version }}

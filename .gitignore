@@ -1,0 +1,14 @@
+target/
+*.class
+*.jar
+*.iml
+.idea/
+.vscode/
+.zed/
+.DS_Store
+.claude/
+CLAUDE.md
+*.log
+
+
+*local*

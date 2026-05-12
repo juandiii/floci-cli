@@ -1,0 +1,106 @@
+package io.floci.cli.commands;
+
+import io.floci.cli.GlobalOptions;
+import io.floci.cli.doctor.Check;
+import io.floci.cli.doctor.CheckResult;
+import io.floci.cli.doctor.CheckStatus;
+import io.floci.cli.doctor.checks.*;
+import io.floci.cli.output.Ansi;
+import io.floci.cli.output.OutputFormat;
+import io.floci.cli.output.Printer;
+import picocli.CommandLine.*;
+
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.Callable;
+
+@Command(
+        name = "doctor",
+        description = "Run environment diagnostics for Floci",
+        mixinStandardHelpOptions = true
+)
+public class DoctorCommand implements Callable<Integer> {
+
+    @Mixin
+    GlobalOptions global;
+
+    @Option(names = {"--check"}, description = "Run only a specific check by name", paramLabel = "<name>")
+    String checkName;
+
+    @Option(names = {"--fix"}, description = "Attempt to auto-fix fixable issues")
+    boolean fix;
+
+    private static final List<Check> ALL_CHECKS = List.of(
+            new DockerInstalledCheck(),
+            new DockerDaemonCheck(),
+            new DockerSocketCheck(),
+            new DockerVersionCheck(),
+            new PortAvailableCheck(),
+            new ImagePresentCheck(),
+            new ImageVersionCheck(),
+            new ContainerRunningCheck(),
+            new EndpointReachableCheck(),
+            new AwsCliEndpointCheck(),
+            new AwsCliS3PathStyleCheck(),
+            new SdkRustS3XmlCheck(),
+            new SdkGoEndpointCheck()
+    );
+
+    @Override
+    public Integer call() {
+        Printer printer = global.printer();
+        List<CheckResult> results = new ArrayList<>();
+
+        printer.println(Ansi.bold("Floci Doctor") + " — checking your environment");
+        printer.println("");
+
+        for (Check check : ALL_CHECKS) {
+            CheckResult result = check.run(global.endpoint, global.container);
+            if (checkName != null && !result.name().equals(checkName)) continue;
+            results.add(result);
+            printResult(printer, result);
+        }
+
+        if (printer.format() != OutputFormat.text) {
+            List<Map<String, Object>> structured = new ArrayList<>();
+            for (CheckResult r : results) {
+                Map<String, Object> m = new LinkedHashMap<>();
+                m.put("name", r.name());
+                m.put("status", r.status().name());
+                m.put("message", r.message());
+                if (r.fix() != null) m.put("fix", r.fix());
+                structured.add(m);
+            }
+            printer.structured(structured);
+            return 0;
+        }
+
+        long fails = results.stream().filter(r -> r.status() == CheckStatus.fail).count();
+        long warns = results.stream().filter(r -> r.status() == CheckStatus.warn).count();
+
+        printer.println("");
+        if (fails == 0 && warns == 0) {
+            printer.println(Ansi.green("All checks passed."));
+        } else {
+            printer.println(fails + " issue(s) found (" + fails + " fail, " + warns + " warn)."
+                    + (fix ? "" : " Run with --fix to auto-resolve fixable issues."));
+        }
+
+        return fails > 0 ? 1 : 0;
+    }
+
+    private void printResult(Printer printer, CheckResult r) {
+        String icon = switch (r.status()) {
+            case ok   -> Ansi.green("✓");
+            case warn -> Ansi.yellow("⚠");
+            case fail -> Ansi.red("✗");
+        };
+        String namePadded = String.format("%-26s", r.name());
+        printer.println("  " + icon + " " + namePadded + " " + r.message());
+        if (r.fix() != null) {
+            printer.println("                               " + Ansi.gray("Fix: " + r.fix()));
+        }
+    }
+}
