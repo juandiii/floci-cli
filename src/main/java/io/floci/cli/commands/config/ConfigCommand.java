@@ -11,6 +11,7 @@ import picocli.CommandLine.*;
                 ConfigShowCommand.class,
                 ConfigValidateCommand.class,
                 ConfigProfileCommand.class,
+                ConfigDefaultProductCommand.class,
                 HelpCommand.class
         }
 )

@@ -6,6 +6,12 @@
     "allDeclaredConstructors": true
   },
   {
+    "name": "io.floci.cli.config.GlobalConfigStore$GlobalConfig",
+    "allDeclaredFields": true,
+    "allDeclaredMethods": true,
+    "allDeclaredConstructors": true
+  },
+  {
     "name": "com.fasterxml.jackson.databind.ser.std.ToStringSerializer",
     "allDeclaredMethods": true
   },

@@ -7,19 +7,27 @@ import io.floci.cli.doctor.CheckResult;
 
 public class ImageVersionCheck implements Check {
 
-    private static final String IMAGE = "floci/floci";
+    private final String image;
     private static final String MIN_VERSION = "1.5.0";
+
+    public ImageVersionCheck() {
+        this("floci/floci");
+    }
+
+    public ImageVersionCheck(String image) {
+        this.image = image;
+    }
 
     @Override
     public CheckResult run(String endpoint, String container) {
         try {
             DockerClient docker = new DockerClient();
-            if (!docker.isImagePresent(IMAGE)) {
-                return CheckResult.warn("image.version", IMAGE + " not present — version cannot be checked",
+            if (!docker.isImagePresent(image)) {
+                return CheckResult.warn("image.version", image + " not present — version cannot be checked",
                         "floci start --pull always");
             }
             // Try reading version label from the image
-            String version = readImageLabel(docker, IMAGE);
+            String version = readImageLabel(docker, image);
             if (version == null) {
                 return CheckResult.ok("image.version", "Image version unknown (no label); assuming compatible");
             }
@@ -28,7 +36,7 @@ public class ImageVersionCheck implements Check {
             }
             return CheckResult.warn("image.version",
                     "Server image version " + version + " is below minimum " + MIN_VERSION,
-                    "docker pull " + IMAGE + ":latest");
+                    "docker pull " + image + ":latest");
         } catch (DockerException e) {
             return CheckResult.warn("image.version", "Could not check image version: " + e.getMessage(), null);
         }

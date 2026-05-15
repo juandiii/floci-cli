@@ -7,17 +7,25 @@ import io.floci.cli.doctor.CheckResult;
 
 public class ImagePresentCheck implements Check {
 
-    private static final String IMAGE = "floci/floci";
+    private final String image;
+
+    public ImagePresentCheck() {
+        this("floci/floci");
+    }
+
+    public ImagePresentCheck(String image) {
+        this.image = image;
+    }
 
     @Override
     public CheckResult run(String endpoint, String container) {
         try {
             DockerClient docker = new DockerClient();
-            if (docker.isImagePresent(IMAGE)) {
-                return CheckResult.ok("image.present", IMAGE + " image present locally");
+            if (docker.isImagePresent(image)) {
+                return CheckResult.ok("image.present", image + " image present locally");
             }
             return CheckResult.fail("image.present",
-                    IMAGE + " not pulled locally",
+                    image + " not pulled locally",
                     "floci start --pull always");
         } catch (DockerException e) {
             return CheckResult.warn("image.present", "Could not check image presence: " + e.getMessage(), null);

@@ -1,6 +1,7 @@
 package io.floci.cli.commands;
 
 import io.floci.cli.GlobalOptions;
+import io.floci.cli.docker.DockerClient;
 import io.floci.cli.output.Ansi;
 import io.floci.cli.output.OutputFormat;
 import io.floci.cli.output.Printer;
@@ -42,7 +43,8 @@ public class EnvCommand implements Callable<Integer> {
     @Override
     public Integer call() {
         Printer printer = global.printer();
-        int port = extractPort(global.endpoint);
+        String effectiveEndpoint = global.resolvedEndpoint(new DockerClient());
+        int port = extractPort(effectiveEndpoint);
         String endpointUrl = "http://" + host + ":" + port;
 
         Map<String, String> vars = new LinkedHashMap<>();

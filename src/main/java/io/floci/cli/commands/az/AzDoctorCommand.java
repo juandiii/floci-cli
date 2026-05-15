@@ -1,12 +1,13 @@
-package io.floci.cli.commands;
+package io.floci.cli.commands.az;
 
-import io.floci.cli.GlobalOptions;
+import io.floci.cli.AzGlobalOptions;
+import io.floci.cli.commands.DoctorCommand;
 import io.floci.cli.doctor.Check;
 import io.floci.cli.doctor.CheckResult;
 import io.floci.cli.doctor.CheckStatus;
 import io.floci.cli.docker.DockerClient;
-import io.floci.cli.doctor.checks.AwsCliEndpointCheck;
-import io.floci.cli.doctor.checks.AwsCliS3PathStyleCheck;
+import io.floci.cli.doctor.checks.AzCliConnectionStringCheck;
+import io.floci.cli.doctor.checks.AzCliInstalledCheck;
 import io.floci.cli.doctor.checks.ContainerRunningCheck;
 import io.floci.cli.doctor.checks.DockerDaemonCheck;
 import io.floci.cli.doctor.checks.DockerInstalledCheck;
@@ -29,13 +30,13 @@ import java.util.concurrent.Callable;
 
 @Command(
         name = "doctor",
-        description = "Run environment diagnostics for Floci",
+        description = "Run environment diagnostics for Floci Azure",
         mixinStandardHelpOptions = true
 )
-public class DoctorCommand implements Callable<Integer> {
+public class AzDoctorCommand implements Callable<Integer> {
 
     @Mixin
-    GlobalOptions global;
+    AzGlobalOptions global;
 
     @Option(names = {"--check"}, description = "Run only a specific check by name", paramLabel = "<name>")
     String checkName;
@@ -43,33 +44,26 @@ public class DoctorCommand implements Callable<Integer> {
     @Option(names = {"--fix"}, description = "Attempt to auto-fix fixable issues")
     boolean fix;
 
-    public static final List<Check> DOCKER_CHECKS = List.of(
-            new DockerInstalledCheck(),
-            new DockerDaemonCheck(),
-            new DockerSocketCheck(),
-            new DockerVersionCheck(),
-            new PortAvailableCheck(),
-            new ImagePresentCheck(),
-            new ImageVersionCheck(),
-            new ContainerRunningCheck(),
-            new EndpointReachableCheck()
+    public static final List<Check> AZ_COMPANION_CHECKS = List.of(
+            new AzCliInstalledCheck(),
+            new AzCliConnectionStringCheck()
     );
 
-    public static final List<Check> AWS_COMPANION_CHECKS = List.of(
-            new AwsCliEndpointCheck(),
-            new AwsCliS3PathStyleCheck()
-    );
+    private static final List<Check> ALL_CHECKS;
 
-    private final List<Check> allChecks;
-
-    public DoctorCommand() {
-        this(AWS_COMPANION_CHECKS);
-    }
-
-    public DoctorCommand(List<Check> companionChecks) {
-        List<Check> checks = new ArrayList<>(DOCKER_CHECKS);
-        checks.addAll(companionChecks);
-        this.allChecks = List.copyOf(checks);
+    static {
+        List<Check> checks = new ArrayList<>();
+        checks.add(new DockerInstalledCheck());
+        checks.add(new DockerDaemonCheck());
+        checks.add(new DockerSocketCheck());
+        checks.add(new DockerVersionCheck());
+        checks.add(new PortAvailableCheck());
+        checks.add(new ImagePresentCheck("floci/floci-az"));
+        checks.add(new ImageVersionCheck("floci/floci-az"));
+        checks.add(new ContainerRunningCheck());
+        checks.add(new EndpointReachableCheck());
+        checks.addAll(AZ_COMPANION_CHECKS);
+        ALL_CHECKS = List.copyOf(checks);
     }
 
     @Override
@@ -81,15 +75,15 @@ public class DoctorCommand implements Callable<Integer> {
         boolean textMode = printer.format() == OutputFormat.text;
 
         if (textMode) {
-            printer.println(Ansi.bold("Floci Doctor") + " — checking your environment");
+            printer.println(Ansi.bold("Floci Azure Doctor") + " — checking your environment");
             printer.println("");
         }
 
-        for (Check check : allChecks) {
+        for (Check check : ALL_CHECKS) {
             CheckResult result = check.run(effectiveEndpoint, global.container);
             if (checkName != null && !result.name().equals(checkName)) continue;
             results.add(result);
-            if (textMode) printResult(printer, result);
+            if (textMode) DoctorCommand.printResult(printer, result);
         }
 
         if (!textMode) {
@@ -118,18 +112,5 @@ public class DoctorCommand implements Callable<Integer> {
         }
 
         return fails > 0 ? 1 : 0;
-    }
-
-    public static void printResult(Printer printer, CheckResult r) {
-        String icon = switch (r.status()) {
-            case ok   -> Ansi.green("✓");
-            case warn -> Ansi.yellow("⚠");
-            case fail -> Ansi.red("✗");
-        };
-        String namePadded = String.format("%-26s", r.name());
-        printer.println("  " + icon + " " + namePadded + " " + r.message());
-        if (r.fix() != null) {
-            printer.println("                               " + Ansi.gray("Fix: " + r.fix()));
-        }
     }
 }

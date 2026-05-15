@@ -1,12 +1,17 @@
 # floci-cli
 
-Official command-line interface for [Floci](https://floci.io) — the free, open-source local AWS emulator.
+Official command-line interface for [Floci](https://floci.io) — the free, open-source local cloud emulator for AWS and Azure.
 
 ```sh
+# AWS (default)
 floci start
-floci doctor
 eval $(floci env)
 aws s3 mb s3://my-bucket
+
+# Azure
+floci az start
+eval $(floci az env)
+az storage container create --name mycontainer
 ```
 
 ## Installation
@@ -48,8 +53,10 @@ java -jar floci.jar version
 
 ## Quick Start
 
+### AWS
+
 ```sh
-# Start Floci
+# Start Floci (AWS emulator)
 floci start
 
 # Check environment
@@ -69,13 +76,56 @@ aws dynamodb create-table --table-name users \
 floci stop
 ```
 
+### Azure
+
+```sh
+# Start Floci Azure emulator
+floci az start
+
+# Check environment
+floci az doctor
+
+# Export Azure connection string
+eval $(floci az env)
+
+# Use Azure services
+az storage container create --name mycontainer
+az storage blob upload --container-name mycontainer --name hello.txt --data "hello"
+
+# Stop Floci Azure
+floci az stop
+```
+
+### Switch default product
+
+Bare commands like `floci start` route to the configured default product (AWS by default).
+
+```sh
+floci config default-product az   # make floci az the default
+floci config default-product aws  # revert to aws
+```
+
 ---
 
 ## Command Reference
 
+Commands are organized into two product groups — `floci aws` (or bare `floci`) and `floci az`. Both groups expose the same lifecycle commands.
+
+### Shared commands (product-independent)
+
 | Command | Description |
 |---------|-------------|
-| `floci start` | Launch the Floci container |
+| `floci config show` | Show active configuration |
+| `floci config validate` | Validate a docker-compose.yml |
+| `floci config profile` | Manage named profiles |
+| `floci config default-product` | Set the default product (aws or az) |
+| `floci completion bash\|zsh` | Generate shell completion scripts |
+
+### AWS commands (`floci` / `floci aws`)
+
+| Command | Description |
+|---------|-------------|
+| `floci start` | Launch the Floci AWS container |
 | `floci stop` | Stop (and optionally remove) the container |
 | `floci restart` | Stop then start |
 | `floci status` | Show container state and server health |
@@ -85,25 +135,54 @@ floci stop
 | `floci services` | List enabled AWS services |
 | `floci doctor` | Run environment diagnostics |
 | `floci env` | Print AWS environment variables |
-| `floci config show` | Show active configuration |
-| `floci config validate` | Validate a docker-compose.yml |
-| `floci config profile` | Manage named profiles |
 | `floci snapshot save/load/list/delete` | Manage state snapshots |
-| `floci completion bash\|zsh` | Generate shell completion |
 
-All commands support `--help`. Global flags available on every command:
+### Azure commands (`floci az`)
+
+| Command | Description |
+|---------|-------------|
+| `floci az start` | Launch the Floci Azure container |
+| `floci az stop` | Stop (and optionally remove) the container |
+| `floci az restart` | Stop then start |
+| `floci az status` | Show container state and server health |
+| `floci az logs` | Stream container logs |
+| `floci az wait` | Poll until Floci Azure is ready (CI-friendly) |
+| `floci az version` | Show CLI and server versions |
+| `floci az services` | List enabled Azure services |
+| `floci az doctor` | Run Azure environment diagnostics |
+| `floci az env` | Print Azure connection string / SDK env vars |
+| `floci az snapshot` | Snapshot commands (coming soon) |
+
+All commands support `--help`.
+
+---
+
+## Global Flags
+
+### AWS global flags
 
 ```
---endpoint <url>         Floci server URL     (default: http://localhost:4566, env: FLOCI_ENDPOINT)
---container <name>       Container name       (default: floci, env: FLOCI_CONTAINER)
---output|-o text|json|yaml  Output format     (default: text)
---quiet, -q              Suppress non-error output
---verbose, -v            Debug logging to stderr
---no-color               Disable ANSI colors
---profile <name>         Load settings from ~/.floci/profiles/<name>.yaml
+--endpoint <url>            Floci server URL     (default: http://localhost:4566, env: FLOCI_ENDPOINT)
+--container <name>          Container name       (default: floci, env: FLOCI_CONTAINER)
+--output|-o text|json|yaml  Output format        (default: text)
+--quiet, -q                 Suppress non-error output
+--verbose, -v               Debug logging to stderr
+--no-color                  Disable ANSI colors
+--profile <name>            Load settings from ~/.floci/profiles/<name>.yaml
 ```
 
-> **Port auto-detection** — `status`, `version`, and `wait` automatically derive the correct
+### Azure global flags
+
+```
+--endpoint <url>            Floci Azure server URL  (default: http://localhost:4577, env: FLOCI_AZ_ENDPOINT)
+--container <name>          Container name          (default: floci-az, env: FLOCI_AZ_CONTAINER)
+--output|-o text|json|yaml  Output format           (default: text)
+--quiet, -q                 Suppress non-error output
+--verbose, -v               Debug logging to stderr
+--no-color                  Disable ANSI colors
+```
+
+> **Port auto-detection** — `status`, `version`, `wait`, and `env` automatically derive the correct
 > endpoint from the container's port mapping. You don't need to pass `--endpoint` when using
 > a non-default port, as long as `--container` points to the right container.
 
@@ -111,20 +190,26 @@ All commands support `--help`. Global flags available on every command:
 
 ## Commands
 
-### `floci start`
+### `floci start` / `floci az start`
 
 Pulls the image (if needed), starts the container, and waits for readiness.
 
 ```sh
+# AWS
 floci start                          # default port 4566
 floci start --port 4599              # custom host port
 floci start --services s3,dynamodb   # enable specific services
 floci start --persist ./data         # persist state to a host directory
 floci start --pull always            # always pull the latest image
 floci start --detach                 # return immediately, don't wait
+
+# Azure
+floci az start                       # default port 4577
+floci az start --port 4578           # custom host port
+floci az start --persist ./data      # persist state to a host directory
 ```
 
-### `floci stop`
+### `floci stop` / `floci az stop`
 
 ```sh
 floci stop                    # graceful stop (10s timeout)
@@ -132,7 +217,7 @@ floci stop --timeout 30       # wait up to 30s before force-kill
 floci stop --remove           # also remove the container after stopping
 ```
 
-### `floci status`
+### `floci status` / `floci az status`
 
 ```sh
 floci status                          # auto-detects endpoint from container port mapping
@@ -152,7 +237,6 @@ floci env --shell powershell | Invoke-Expression  # PowerShell
 
 floci env --host myhost.local              # custom hostname
 floci env --region eu-west-1              # custom region (default: us-east-1)
-floci env --endpoint http://localhost:4599 # pick up port from a non-default instance
 floci env -o json                          # structured output for scripts
 ```
 
@@ -160,12 +244,44 @@ Variables exported:
 
 | Variable | Default value |
 |----------|---------------|
-| `AWS_ENDPOINT_URL` | `http://localhost.floci.io:4566` |
+| `AWS_ENDPOINT_URL` | `http://localhost.floci.io:<port>` |
 | `AWS_ACCESS_KEY_ID` | `test` |
 | `AWS_SECRET_ACCESS_KEY` | `test` |
 | `AWS_DEFAULT_REGION` | `us-east-1` |
 
-### `floci logs`
+### `floci az env`
+
+Prints Azure connection variables for the running Floci Azure instance.
+
+```sh
+eval $(floci az env)                                # connection string (default)
+eval $(floci az env --format sdk-vars)              # individual SDK endpoint vars
+eval $(floci az env --format sdk-vars --service blob,queue)  # specific services only
+
+floci az env --shell fish | source                  # fish
+floci az env -o json                                # structured output
+```
+
+**Connection string mode** (default) exports:
+
+| Variable | Value |
+|----------|-------|
+| `AZURE_STORAGE_CONNECTION_STRING` | Full Azurite-compatible connection string |
+
+**SDK vars mode** (`--format sdk-vars`) exports:
+
+| Variable | Default value |
+|----------|---------------|
+| `AZURE_STORAGE_ACCOUNT` | `devstoreaccount1` |
+| `AZURE_STORAGE_KEY` | Azurite dev key |
+| `AZURE_STORAGE_BLOB_ENDPOINT` | `http://localhost.floci.io:<port>/devstoreaccount1` |
+| `AZURE_STORAGE_QUEUE_ENDPOINT` | `http://localhost.floci.io:<port>/devstoreaccount1-queue` |
+| `AZURE_STORAGE_TABLE_ENDPOINT` | `http://localhost.floci.io:<port>/devstoreaccount1-table` |
+| `AZURE_FUNCTIONS_ENDPOINT` | `http://localhost.floci.io:<port>/devstoreaccount1-functions` |
+| `AZURE_APP_CONFIGURATION_ENDPOINT` | `http://localhost.floci.io:<port>/devstoreaccount1-appconfig` |
+| `AZURE_KEY_VAULT_ENDPOINT` | `http://localhost.floci.io:<port>/devstoreaccount1-keyvault` |
+
+### `floci logs` / `floci az logs`
 
 ```sh
 floci logs                       # last logs from the container
@@ -174,7 +290,7 @@ floci logs --since 5m            # logs from the last 5 minutes
 floci logs --follow              # stream live logs (Ctrl-C to stop)
 ```
 
-### `floci wait`
+### `floci wait` / `floci az wait`
 
 ```sh
 floci wait                        # wait up to 30s (default)
@@ -183,28 +299,28 @@ floci wait --service dynamodb     # wait until a specific service is ready
 floci wait -o json                # machine-readable output
 ```
 
-### `floci doctor`
+### `floci doctor` / `floci az doctor`
 
 ```sh
 floci doctor                      # run all checks
 floci doctor --check docker.installed   # run a single check by name
 floci doctor --fix                # auto-fix fixable issues
 floci doctor -o json              # structured output for scripts
+
+floci az doctor                   # Azure-specific checks (includes az CLI + connection string)
 ```
 
-### `floci version`
+### `floci version` / `floci az version`
 
 ```sh
 floci version                     # CLI version, server version, image digest
 floci version -o json
 ```
 
-### `floci services`
+### `floci services` / `floci az services`
 
 ```sh
 floci services                    # list all enabled services
-floci services --mode docker      # only docker-backed services
-floci services --mode in-process  # only in-process services
 floci services -o json
 ```
 
@@ -212,6 +328,7 @@ floci services -o json
 
 ```sh
 floci config show                          # show active configuration
+floci config default-product aws|az        # set the default product (persisted to ~/.floci/config.yaml)
 floci config profile list                  # list saved profiles
 floci config profile create <name>         # create a new profile
 floci config profile show <name>           # show a profile
@@ -224,7 +341,7 @@ Use `--profile <name>` on any command to load one.
 
 ### `floci snapshot`
 
-Save and restore named snapshots of Floci state (requires server-side support — coming soon).
+Save and restore named snapshots of Floci AWS state.
 
 ```sh
 floci snapshot list
@@ -234,6 +351,8 @@ floci snapshot delete <name>
 floci snapshot export <name> -o tarball.tar.gz
 floci snapshot import tarball.tar.gz
 ```
+
+> Azure snapshots (`floci az snapshot`) are not yet available — they require server-side endpoints not yet implemented in Floci Azure.
 
 ### `floci completion`
 
@@ -246,20 +365,14 @@ floci completion zsh  >> ~/.zshrc
 
 ## CI Usage
 
+### AWS CI
+
 ```sh
-floci start --port 4566 --detach
+floci start --detach
 floci wait --timeout 60s
+eval $(floci env)
 pytest  # or your test command
 floci stop --remove
-```
-
-Set AWS environment variables in CI before running tests:
-
-```sh
-export AWS_ENDPOINT_URL=http://localhost:4566
-export AWS_ACCESS_KEY_ID=test
-export AWS_SECRET_ACCESS_KEY=test
-export AWS_DEFAULT_REGION=us-east-1
 ```
 
 With Docker Compose:
@@ -274,13 +387,35 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock
 ```
 
+### Azure CI
+
+```sh
+floci az start --detach
+floci az wait --timeout 60s
+eval $(floci az env)
+pytest  # or your test command
+floci az stop --remove
+```
+
+With Docker Compose:
+
+```yaml
+services:
+  floci-az:
+    image: floci/floci-az:latest
+    ports:
+      - "4577:4577"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+```
+
 ---
 
 ## Scope
 
 `floci-cli` manages Floci's lifecycle, config, state, and diagnostics.
-It does **not** wrap the AWS CLI or manage AWS resources.
-Use `aws` with `AWS_ENDPOINT_URL=http://localhost:4566` for resource operations.
+It does **not** wrap the AWS CLI, Azure CLI, or manage cloud resources directly.
+Use `aws` with `AWS_ENDPOINT_URL` or `az` with the appropriate connection string for resource operations.
 
 ---
 

@@ -1,21 +1,25 @@
 package io.floci.cli;
 
 import io.floci.cli.commands.*;
+import io.floci.cli.commands.aws.AwsCommand;
+import io.floci.cli.commands.az.AzCommand;
 import io.floci.cli.commands.config.ConfigCommand;
 import io.floci.cli.commands.snapshot.SnapshotCommand;
+import io.floci.cli.config.GlobalConfigStore;
 import io.floci.cli.output.Ansi;
 import picocli.CommandLine;
 import picocli.CommandLine.*;
 
 @Command(
         name = "floci",
-        description = "Manage your local Floci AWS emulator%n%n" +
-                "  floci start     — launch the container%n" +
+        description = "Manage your local Floci emulators%n%n" +
+                "  floci start     — launch the container (default: aws)%n" +
                 "  floci stop      — stop the container%n" +
                 "  floci status    — show health and version%n" +
                 "  floci doctor    — diagnose environment issues%n" +
-                "  floci logs      — stream container logs%n" +
-                "  floci env       — print AWS environment variables%n",
+                "  floci env       — print environment variables%n" +
+                "  floci aws       — explicit AWS emulator commands%n" +
+                "  floci az        — Azure emulator commands%n",
         mixinStandardHelpOptions = true,
         versionProvider = FlociCli.VersionProvider.class,
         subcommands = {
@@ -32,6 +36,8 @@ import picocli.CommandLine.*;
                 ConfigCommand.class,
                 SnapshotCommand.class,
                 CompletionCommand.class,
+                AwsCommand.class,
+                AzCommand.class,
                 HelpCommand.class
         }
 )
@@ -56,15 +62,43 @@ public class FlociCli implements Runnable {
     }
 
     public static void main(String[] args) {
-        // Honor NO_COLOR and non-TTY environments
         if (System.getenv("NO_COLOR") != null || System.console() == null) {
             Ansi.disable();
         }
+
+        // If no explicit product subcommand, route bare commands to the configured default.
+        // "floci az start" and "floci aws start" always win; only bare "floci start" is affected.
+        String[] effectiveArgs = args;
+        if (!isExplicitProduct(args)) {
+            String defaultProduct = new GlobalConfigStore().getDefaultProduct();
+            if ("az".equals(defaultProduct)) {
+                effectiveArgs = prepend("az", args);
+            }
+        }
+
         int exitCode = new CommandLine(new FlociCli())
                 .setExecutionExceptionHandler(new ExceptionHandler())
                 .setCaseInsensitiveEnumValuesAllowed(true)
-                .execute(args);
+                .execute(effectiveArgs);
         System.exit(exitCode);
+    }
+
+    // Returns true when routing should NOT apply: explicit product subgroup,
+    // or a product-independent command like "config" or "completion".
+    private static boolean isExplicitProduct(String[] args) {
+        for (String arg : args) {
+            if (arg.startsWith("-")) continue;
+            return "aws".equals(arg) || "az".equals(arg)
+                    || "config".equals(arg) || "completion".equals(arg) || "help".equals(arg);
+        }
+        return false;
+    }
+
+    private static String[] prepend(String token, String[] args) {
+        String[] result = new String[args.length + 1];
+        result[0] = token;
+        System.arraycopy(args, 0, result, 1, args.length);
+        return result;
     }
 
     @Override

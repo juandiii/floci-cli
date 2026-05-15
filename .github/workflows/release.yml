@@ -1,7 +1,7 @@
 name: Release
 
 # Triggered when a SemVer tag (e.g. 0.1.0) is pushed.
-# Builds native binaries for all 5 platform targets and creates a GitHub Release.
+# Builds native binaries for 4 platform targets and creates a GitHub Release.
 
 on:
   push:
@@ -53,25 +53,6 @@ jobs:
         with:
           name: floci-linux-arm64
           path: target/floci-linux-arm64
-
-  build-darwin-amd64:
-    name: Build — darwin/amd64
-    runs-on: macos-13
-    timeout-minutes: 45
-    steps:
-      - uses: actions/checkout@v4
-      - uses: graalvm/setup-graalvm@v1
-        with:
-          java-version: '25'
-          distribution: 'graalvm-community'
-          cache: maven
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-      - run: mvn clean package -Pnative -DskipTests -B
-      - run: mv target/floci target/floci-darwin-amd64
-      - uses: actions/upload-artifact@v4
-        with:
-          name: floci-darwin-amd64
-          path: target/floci-darwin-amd64
 
   build-darwin-arm64:
     name: Build — darwin/arm64
@@ -130,7 +111,7 @@ jobs:
 
   release:
     name: Create GitHub Release
-    needs: [build-linux-amd64, build-linux-arm64, build-darwin-amd64, build-darwin-arm64, build-windows-amd64, build-jar]
+    needs: [build-linux-amd64, build-linux-arm64, build-darwin-arm64, build-windows-amd64, build-jar]
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -178,7 +159,6 @@ jobs:
           files: |
             dist/floci-linux-amd64/floci-linux-amd64
             dist/floci-linux-arm64/floci-linux-arm64
-            dist/floci-darwin-amd64/floci-darwin-amd64
             dist/floci-darwin-arm64/floci-darwin-arm64
             dist/floci-windows-amd64/floci-windows-amd64.exe
             dist/floci-jar/floci.jar
