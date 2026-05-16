@@ -36,7 +36,6 @@ jobs:
       - name: Extract per-platform SHA256
         id: sha
         run: |
-          echo "darwin_amd64=$(grep 'floci-darwin-amd64' sha256sums.txt | awk '{print $1}')" >> "$GITHUB_OUTPUT"
           echo "darwin_arm64=$(grep 'floci-darwin-arm64' sha256sums.txt | awk '{print $1}')" >> "$GITHUB_OUTPUT"
           echo "linux_amd64=$(grep 'floci-linux-amd64' sha256sums.txt | awk '{print $1}')" >> "$GITHUB_OUTPUT"
           echo "linux_arm64=$(grep 'floci-linux-arm64' sha256sums.txt | awk '{print $1}')" >> "$GITHUB_OUTPUT"
@@ -45,7 +44,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: floci-io/homebrew-floci
-          token: ${{ secrets.HOMEBREW_BUMP_TOKEN }}
+          token: ${{ secrets.GH_TOKEN }}
           path: homebrew-floci
 
       - name: Update formula
@@ -55,12 +54,10 @@ jobs:
 
          sed -i "s/version \".*\"/version \"${VERSION}\"/" "$FORMULA"
          sed -i "s/{{VERSION}}/${VERSION}/g" "$FORMULA"
-         sed -i "s/{{SHA256_DARWIN_AMD64}}/${{ steps.sha.outputs.darwin_amd64 }}/g" "$FORMULA"
          sed -i "s/{{SHA256_DARWIN_ARM64}}/${{ steps.sha.outputs.darwin_arm64 }}/g" "$FORMULA"
          sed -i "s/{{SHA256_LINUX_AMD64}}/${{ steps.sha.outputs.linux_amd64 }}/g" "$FORMULA"
          sed -i "s/{{SHA256_LINUX_ARM64}}/${{ steps.sha.outputs.linux_arm64 }}/g" "$FORMULA"
 
-         sed -i "/darwin-amd64/ { n; s/sha256 \".*\"/sha256 \"${{ steps.sha.outputs.darwin_amd64 }}\"/ }" "$FORMULA"
          sed -i "/darwin-arm64/ { n; s/sha256 \".*\"/sha256 \"${{ steps.sha.outputs.darwin_arm64 }}\"/ }" "$FORMULA"
          sed -i "/linux-amd64/ { n; s/sha256 \".*\"/sha256 \"${{ steps.sha.outputs.linux_amd64 }}\"/ }" "$FORMULA"
          sed -i "/linux-arm64/ { n; s/sha256 \".*\"/sha256 \"${{ steps.sha.outputs.linux_arm64 }}\"/ }" "$FORMULA"
@@ -68,7 +65,7 @@ jobs:
       - name: Open PR
         uses: peter-evans/create-pull-request@v7
         with:
-          token: ${{ secrets.HOMEBREW_BUMP_TOKEN }}
+          token: ${{ secrets.GH_TOKEN }}
           path: homebrew-floci
           commit-message: "floci ${{ steps.version.outputs.version }}"
           title: "floci ${{ steps.version.outputs.version }}"
