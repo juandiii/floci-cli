@@ -26,7 +26,9 @@ public class GlobalConfigStore {
         if (!Files.exists(configFile)) return "aws";
         try {
             GlobalConfig config = YAML.readValue(configFile.toFile(), GlobalConfig.class);
-            return "az".equals(config.defaultProduct) ? "az" : "aws";
+            if ("az".equals(config.defaultProduct)) return "az";
+            if ("gcp".equals(config.defaultProduct)) return "gcp";
+            return "aws";
         } catch (IOException e) {
             return "aws";
         }
