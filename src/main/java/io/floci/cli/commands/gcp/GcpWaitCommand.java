@@ -34,7 +34,7 @@ public class GcpWaitCommand implements Callable<Integer> {
         Printer printer = global.printer();
         long timeoutMillis = WaitCommand.parseDuration(timeout);
         String effectiveEndpoint = global.resolvedEndpoint(new io.floci.cli.docker.DockerClient());
-        FlociHttpClient client = new FlociHttpClient(effectiveEndpoint);
+        FlociHttpClient client = new FlociHttpClient(effectiveEndpoint, GcpGlobalOptions.CONTROL_PREFIX);
         Instant deadline = Instant.now().plusMillis(timeoutMillis);
 
         while (Instant.now().isBefore(deadline)) {

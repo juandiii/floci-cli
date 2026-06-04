@@ -7,6 +7,12 @@ This project uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.1.4] — 2026-06-02
+
+### Fixed
+
+- `floci gcp wait` / `status` / `version` / `services` / `doctor` timed out or reported the server unreachable even when the floci-gcp container was healthy — the CLI probed the AWS/Azure control path `/_floci/health`, which the GCP server routes into its GCS service (`object not found bucket=_floci name=health`). The GCP control plane lives under `/_floci-gcp`; `FlociHttpClient` now takes a configurable control-plane prefix and the `floci gcp` commands use `/_floci-gcp`
+
 ## [0.1.3] — 2026-06-02
 
 ### Added

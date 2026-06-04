@@ -6,9 +6,19 @@ import io.floci.cli.http.FlociHttpClient;
 
 public class EndpointReachableCheck implements Check {
 
+    private final String controlPrefix;
+
+    public EndpointReachableCheck() {
+        this(FlociHttpClient.DEFAULT_CONTROL_PREFIX);
+    }
+
+    public EndpointReachableCheck(String controlPrefix) {
+        this.controlPrefix = controlPrefix;
+    }
+
     @Override
     public CheckResult run(String endpoint, String container) {
-        FlociHttpClient client = new FlociHttpClient(endpoint);
+        FlociHttpClient client = new FlociHttpClient(endpoint, controlPrefix);
         if (client.isReachable()) {
             try {
                 var health = client.health();
@@ -19,7 +29,7 @@ public class EndpointReachableCheck implements Check {
             }
         }
         return CheckResult.fail("endpoint.reachable",
-                "GET /_floci/health at " + endpoint + " did not return 200",
+                "GET " + controlPrefix + "/health at " + endpoint + " did not return 200",
                 "Is Floci running? Try 'floci start'.");
     }
 }

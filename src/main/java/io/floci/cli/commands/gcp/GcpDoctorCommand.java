@@ -54,7 +54,7 @@ public class GcpDoctorCommand implements Callable<Integer> {
         checks.add(new ImagePresentCheck("floci/floci-gcp"));
         checks.add(new ImageVersionCheck("floci/floci-gcp"));
         checks.add(new ContainerRunningCheck());
-        checks.add(new EndpointReachableCheck());
+        checks.add(new EndpointReachableCheck(io.floci.cli.GcpGlobalOptions.CONTROL_PREFIX));
         ALL_CHECKS = List.copyOf(checks);
     }
 

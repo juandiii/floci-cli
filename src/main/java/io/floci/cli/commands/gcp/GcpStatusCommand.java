@@ -48,7 +48,7 @@ public class GcpStatusCommand implements Callable<Integer> {
         String serverVersion = "unavailable";
         String serverEdition = "";
         boolean reachable = false;
-        FlociHttpClient client = new FlociHttpClient(effectiveEndpoint);
+        FlociHttpClient client = new FlociHttpClient(effectiveEndpoint, GcpGlobalOptions.CONTROL_PREFIX);
         try {
             var health = client.health();
             serverVersion = health.version();

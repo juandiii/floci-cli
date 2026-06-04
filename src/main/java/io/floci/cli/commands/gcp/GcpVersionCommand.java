@@ -35,7 +35,7 @@ public class GcpVersionCommand implements Callable<Integer> {
         DockerClient docker = new DockerClient();
         String effectiveEndpoint = global.resolvedEndpoint(docker);
 
-        FlociHttpClient client = new FlociHttpClient(effectiveEndpoint);
+        FlociHttpClient client = new FlociHttpClient(effectiveEndpoint, GcpGlobalOptions.CONTROL_PREFIX);
         try {
             var info = client.info();
             serverVersion = info.version();

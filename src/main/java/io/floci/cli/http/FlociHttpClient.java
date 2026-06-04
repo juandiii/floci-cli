@@ -15,18 +15,33 @@ public class FlociHttpClient {
 
     private static final ObjectMapper MAPPER = new ObjectMapper();
 
+    /** Default control-plane path prefix used by the AWS and Azure emulators. */
+    public static final String DEFAULT_CONTROL_PREFIX = "/_floci";
+
     private final String endpoint;
+    private final String controlPrefix;
     private final HttpClient http;
 
     public FlociHttpClient(String endpoint) {
+        this(endpoint, DEFAULT_CONTROL_PREFIX);
+    }
+
+    /**
+     * @param controlPrefix the control-plane path prefix exposed by the target server
+     *                      (e.g. {@code /_floci} for AWS/Azure, {@code /_floci-gcp} for GCP).
+     */
+    public FlociHttpClient(String endpoint, String controlPrefix) {
         this.endpoint = endpoint.endsWith("/") ? endpoint.substring(0, endpoint.length() - 1) : endpoint;
+        this.controlPrefix = controlPrefix.endsWith("/")
+                ? controlPrefix.substring(0, controlPrefix.length() - 1)
+                : controlPrefix;
         this.http = HttpClient.newBuilder()
                 .connectTimeout(Duration.ofSeconds(5))
                 .build();
     }
 
     public HealthInfo health() throws FlociException {
-        JsonNode node = getJson("/_floci/health");
+        JsonNode node = getJson(controlPrefix + "/health");
         return new HealthInfo(
                 node.path("version").asText("unknown"),
                 node.path("original_edition").asText(node.path("edition").asText("community")),
@@ -44,14 +59,14 @@ public class FlociHttpClient {
     }
 
     public ServerInfo info() throws FlociException {
-        JsonNode node = getJson("/_floci/info");
+        JsonNode node = getJson(controlPrefix + "/info");
         return new ServerInfo(
                 node.path("version").asText("unknown"),
                 node.path("original_edition").asText(node.path("edition").asText("community")));
     }
 
     public InitState initState() throws FlociException {
-        JsonNode node = getJson("/_floci/init");
+        JsonNode node = getJson(controlPrefix + "/init");
         JsonNode completed = node.path("completed");
         return new InitState(
                 completed.path("boot").asBoolean(),
@@ -63,7 +78,7 @@ public class FlociHttpClient {
     public boolean isReachable() {
         try {
             HttpRequest req = HttpRequest.newBuilder()
-                    .uri(URI.create(endpoint + "/_floci/health"))
+                    .uri(URI.create(endpoint + controlPrefix + "/health"))
                     .timeout(Duration.ofSeconds(3))
                     .GET()
                     .build();
@@ -75,19 +90,19 @@ public class FlociHttpClient {
     }
 
     public Map<String, Object> postSnapshot(String name) throws FlociException {
-        return postJson("/_floci/snapshots/" + name, "{}");
+        return postJson(controlPrefix + "/snapshots/" + name, "{}");
     }
 
     public Map<String, Object> loadSnapshot(String name) throws FlociException {
-        return postJson("/_floci/snapshots/" + name + "/load", "{}");
+        return postJson(controlPrefix + "/snapshots/" + name + "/load", "{}");
     }
 
     public JsonNode listSnapshots() throws FlociException {
-        return getJson("/_floci/snapshots");
+        return getJson(controlPrefix + "/snapshots");
     }
 
     public void deleteSnapshot(String name) throws FlociException {
-        deleteRequest("/_floci/snapshots/" + name);
+        deleteRequest(controlPrefix + "/snapshots/" + name);
     }
 
     private JsonNode getJson(String path) throws FlociException {

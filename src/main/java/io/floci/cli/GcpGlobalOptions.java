@@ -10,6 +10,9 @@ import java.net.URI;
 
 public class GcpGlobalOptions {
 
+    /** Control-plane path prefix exposed by the floci-gcp server (differs from AWS/Azure's {@code /_floci}). */
+    public static final String CONTROL_PREFIX = "/_floci-gcp";
+
     @Option(names = {"--endpoint"},
             description = "Floci GCP server endpoint URL",
             defaultValue = "${FLOCI_GCP_ENDPOINT:-http://localhost:4588}",

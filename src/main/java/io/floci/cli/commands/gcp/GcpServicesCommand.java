@@ -25,7 +25,7 @@ public class GcpServicesCommand implements Callable<Integer> {
     @Override
     public Integer call() {
         Printer printer = global.printer();
-        FlociHttpClient client = new FlociHttpClient(global.endpoint);
+        FlociHttpClient client = new FlociHttpClient(global.endpoint, GcpGlobalOptions.CONTROL_PREFIX);
 
         List<String> services;
         try {
